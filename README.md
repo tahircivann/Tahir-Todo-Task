@@ -11,16 +11,39 @@ This project implements **Clean Architecture** with the following layers:
 - **Infrastructure Layer**: Database, external services, and configuration
 - **API Layer**: FastAPI endpoints, schemas, and dependency injection
 
+### 📊 Architecture Diagrams
+
+#### System Architecture Overview
+![System Architecture](architecture_puml.png)
+*Complete system architecture showing Hexagonal Architecture (Ports & Adapters) pattern with API, Application, Domain, and Infrastructure layers.*
+
+#### Event Flow Sequence
+![Event Flow Sequence](event_flow_sequencepuml.png)
+*Step-by-step flow demonstrating the automatic task deadline adjustment feature through event-driven architecture.*
+
+#### Domain Model
+![Domain Model](domain_model_puml.png)
+*Core business entities, domain events, and their relationships showing the rich domain model with business logic.*
+
+#### Deployment Architecture
+![Deployment Architecture](deployment_puml.png)
+*Docker containerization setup showing the complete application stack, database schema, and external access points.*
+
+> **Note**: These diagrams are generated from PlantUML source files. For more details and customization options, see [PLANTUML_README.md](PLANTUML_README.md).
+
 ## ✨ Features
 
 - **Project Management**: Create, read, update, and delete projects
 - **Task Management**: Full CRUD operations for tasks within projects
 - **Clean Architecture**: Proper separation of concerns and dependency inversion
 - **Event-Driven**: Domain events for loose coupling between components
+- **Automatic Task Adjustment**: Tasks automatically adjust when project deadlines change
+- **Project Auto-Completion**: Projects complete automatically when all tasks are done
 - **Comprehensive Testing**: Unit and integration tests with pytest
 - **Docker Support**: Containerized deployment with Docker and docker-compose
 - **Database Integration**: SQLAlchemy ORM with SQLite database
 - **API Documentation**: Auto-generated OpenAPI/Swagger documentation
+- **Visual Documentation**: PlantUML diagrams explaining architecture and data flow
 
 ## 🚀 Quick Start
 

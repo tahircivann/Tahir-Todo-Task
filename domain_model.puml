@@ -1,0 +1,168 @@
+@startuml Domain Model - Task Management System
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam class {
+    BackgroundColor #E3F2FD
+    BorderColor #1976D2
+    ArrowColor #1976D2
+}
+
+title Domain Model - Task Management System
+
+package "Domain Entities" {
+    class Task {
+        - id: UUID
+        - title: String
+        - description: String?
+        - deadline: DateTime
+        - completed: Boolean
+        - project_id: UUID?
+        - created_at: DateTime
+        - updated_at: DateTime
+        - _events: List<DomainEvent>
+        --
+        + __init__(title, deadline, ...)
+        + mark_completed(): void
+        + reopen(): void
+        + update_deadline(new_deadline, project_deadline?): void
+        + link_to_project(project_id): void
+        + unlink_from_project(): void
+        + _add_event(event): void
+        + collect_events(): List<DomainEvent>
+    }
+    
+    class Project {
+        - id: UUID
+        - title: String
+        - deadline: DateTime
+        - completed: Boolean
+        - created_at: DateTime
+        - updated_at: DateTime
+        - _events: List<DomainEvent>
+        --
+        + __init__(title, deadline, ...)
+        + mark_completed(): void
+        + reopen(): void
+        + update_deadline(new_deadline): void
+        + _add_event(event): void
+        + collect_events(): List<DomainEvent>
+    }
+    
+    class DomainEvent {
+        - event_id: UUID
+        - occurred_at: DateTime
+        --
+        + __post_init__(): void
+    }
+}
+
+package "Domain Events" {
+    class TaskCreatedEvent {
+        + task_id: UUID
+        + title: String
+        + deadline: DateTime
+    }
+    
+    class TaskCompletedEvent {
+        + task_id: UUID
+        + project_id: UUID?
+        + completed_at: DateTime
+    }
+    
+    class TaskReopenedEvent {
+        + task_id: UUID
+        + project_id: UUID?
+        + reopened_at: DateTime
+    }
+    
+    class TaskDeadlineChangedEvent {
+        + task_id: UUID
+        + old_deadline: DateTime
+        + new_deadline: DateTime
+    }
+    
+    class ProjectCreatedEvent {
+        + project_id: UUID
+        + title: String
+        + deadline: DateTime
+    }
+    
+    class ProjectCompletedEvent {
+        + project_id: UUID
+        + completed_at: DateTime
+    }
+    
+    class ProjectReopenedEvent {
+        + project_id: UUID
+        + reopened_at: DateTime
+    }
+    
+    class ProjectDeadlineChangedEvent {
+        + project_id: UUID
+        + old_deadline: DateTime
+        + new_deadline: DateTime
+    }
+}
+
+package "Domain Exceptions" {
+    class InvalidDeadlineError {
+        + message: String
+    }
+    
+    class TaskNotFoundError {
+        + message: String
+    }
+    
+    class ProjectNotFoundError {
+        + message: String
+    }
+}
+
+' Relationships
+Task ||--o{ Project : "belongs to (optional)"
+Task ||--o{ TaskCreatedEvent : "emits"
+Task ||--o{ TaskCompletedEvent : "emits"
+Task ||--o{ TaskReopenedEvent : "emits"
+Task ||--o{ TaskDeadlineChangedEvent : "emits"
+
+Project ||--o{ ProjectCreatedEvent : "emits"
+Project ||--o{ ProjectCompletedEvent : "emits"
+Project ||--o{ ProjectReopenedEvent : "emits"
+Project ||--o{ ProjectDeadlineChangedEvent : "emits"
+
+TaskCreatedEvent --|> DomainEvent
+TaskCompletedEvent --|> DomainEvent
+TaskReopenedEvent --|> DomainEvent
+TaskDeadlineChangedEvent --|> DomainEvent
+ProjectCreatedEvent --|> DomainEvent
+ProjectCompletedEvent --|> DomainEvent
+ProjectReopenedEvent --|> DomainEvent
+ProjectDeadlineChangedEvent --|> DomainEvent
+
+Task ..> InvalidDeadlineError : "raises"
+Task ..> TaskNotFoundError : "raises"
+Project ..> ProjectNotFoundError : "raises"
+
+note right of Task
+  Business Rules:
+  - Task deadline cannot exceed project deadline
+  - Tasks can be linked/unlinked from projects
+  - Events are emitted for state changes
+end note
+
+note right of Project
+  Business Rules:
+  - Project completion depends on all tasks
+  - Deadline changes trigger task adjustments
+  - Events are emitted for state changes
+end note
+
+note right of DomainEvent
+  Event System:
+  - All events inherit from DomainEvent
+  - Events contain relevant data
+  - Used for event-driven architecture
+end note
+
+@enduml

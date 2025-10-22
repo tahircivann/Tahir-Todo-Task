@@ -1,0 +1,175 @@
+@startuml Task Management System Architecture
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam componentStyle rectangle
+
+title Task Management System - Hexagonal Architecture
+
+' Define colors
+skinparam package {
+    BackgroundColor #E1F5FE
+    BorderColor #01579B
+}
+
+skinparam component {
+    BackgroundColor #F3E5F5
+    BorderColor #4A148C
+}
+
+skinparam database {
+    BackgroundColor #E8F5E8
+    BorderColor #2E7D32
+}
+
+' External Layer (API)
+package "API Layer" as API {
+    component [FastAPI App] as FastAPI
+    component [Task Router] as TaskRouter
+    component [Project Router] as ProjectRouter
+    component [Dependencies] as Dependencies
+    component [Schemas] as Schemas
+}
+
+' Application Layer
+package "Application Layer" as App {
+    package "Services" as Services {
+        component [TaskService] as TaskService
+        component [ProjectService] as ProjectService
+    }
+    
+    package "Event Handlers" as EventHandlers {
+        component [TaskEventHandlers] as TaskHandlers
+        component [ProjectEventHandlers] as ProjectHandlers
+    }
+    
+    package "Ports (Interfaces)" as Ports {
+        interface [TaskRepository] as TaskRepoPort
+        interface [ProjectRepository] as ProjectRepoPort
+        interface [EventBus] as EventBusPort
+    }
+}
+
+' Domain Layer
+package "Domain Layer" as Domain {
+    package "Entities" as Entities {
+        component [Task] as TaskEntity
+        component [Project] as ProjectEntity
+        component [DomainEvent] as DomainEvent
+    }
+    
+    package "Events" as Events {
+        component [TaskCreatedEvent] as TaskCreated
+        component [TaskCompletedEvent] as TaskCompleted
+        component [TaskReopenedEvent] as TaskReopened
+        component [TaskDeadlineChangedEvent] as TaskDeadlineChanged
+        component [ProjectCreatedEvent] as ProjectCreated
+        component [ProjectCompletedEvent] as ProjectCompleted
+        component [ProjectReopenedEvent] as ProjectReopened
+        component [ProjectDeadlineChangedEvent] as ProjectDeadlineChanged
+    }
+    
+    package "Exceptions" as Exceptions {
+        component [DomainExceptions] as DomainExceptions
+    }
+}
+
+' Infrastructure Layer
+package "Infrastructure Layer" as Infra {
+    package "Database" as Database {
+        component [SQLAlchemy Models] as Models
+        component [TaskRepository] as TaskRepoImpl
+        component [ProjectRepository] as ProjectRepoImpl
+        component [Database Session] as DBSession
+        database [SQLite Database] as SQLite
+    }
+    
+    package "Event Bus" as EventBus {
+        component [InMemoryEventBus] as EventBusImpl
+    }
+    
+    package "Config" as Config {
+        component [Settings] as Settings
+    }
+}
+
+' External Systems
+cloud [Client Applications] as Client
+cloud [Docker Container] as Docker
+
+' Connections - API Layer
+Client --> FastAPI : HTTP Requests
+FastAPI --> TaskRouter : Route /tasks/*
+FastAPI --> ProjectRouter : Route /projects/*
+TaskRouter --> TaskService : Use Cases
+ProjectRouter --> ProjectService : Use Cases
+Dependencies --> TaskService : Dependency Injection
+Dependencies --> ProjectService : Dependency Injection
+Dependencies --> EventBusImpl : Event Bus Injection
+
+' Connections - Application Layer
+TaskService --> TaskRepoPort : Repository Interface
+ProjectService --> ProjectRepoPort : Repository Interface
+TaskService --> EventBusPort : Publish Events
+ProjectService --> EventBusPort : Publish Events
+EventBusPort --> TaskHandlers : Event Handling
+EventBusPort --> ProjectHandlers : Event Handling
+
+' Connections - Domain Layer
+TaskService --> TaskEntity : Domain Operations
+ProjectService --> ProjectEntity : Domain Operations
+TaskEntity --> DomainEvent : Emit Events
+ProjectEntity --> DomainEvent : Emit Events
+TaskEntity --> TaskCreated : Create Event
+TaskEntity --> TaskCompleted : Complete Event
+TaskEntity --> TaskReopened : Reopen Event
+TaskEntity --> TaskDeadlineChanged : Deadline Event
+ProjectEntity --> ProjectCreated : Create Event
+ProjectEntity --> ProjectCompleted : Complete Event
+ProjectEntity --> ProjectReopened : Reopen Event
+ProjectEntity --> ProjectDeadlineChanged : Deadline Event
+
+' Connections - Infrastructure Layer
+TaskRepoPort <|.. TaskRepoImpl : Implements
+ProjectRepoPort <|.. ProjectRepoImpl : Implements
+EventBusPort <|.. EventBusImpl : Implements
+TaskRepoImpl --> Models : ORM Mapping
+ProjectRepoImpl --> Models : ORM Mapping
+TaskRepoImpl --> DBSession : Database Access
+ProjectRepoImpl --> DBSession : Database Access
+DBSession --> SQLite : Data Persistence
+Models --> SQLite : Table Mapping
+
+' Docker deployment
+Docker --> FastAPI : Containerized App
+Docker --> SQLite : Embedded Database
+
+' Event Flow (dotted lines)
+TaskEntity ..> EventBusImpl : Publish Events
+ProjectEntity ..> EventBusImpl : Publish Events
+EventBusImpl ..> TaskHandlers : Route Events
+EventBusImpl ..> ProjectHandlers : Route Events
+ProjectHandlers ..> TaskEntity : Auto-adjust Deadlines
+
+note right of EventBusImpl
+  Event-driven architecture:
+  - Project deadline changes
+  - Automatically adjust task deadlines
+  - Auto-complete projects when all tasks done
+end note
+
+note right of TaskEntity
+  Domain Logic:
+  - Business rules validation
+  - Event emission
+  - State management
+end note
+
+note right of ProjectEntity
+  Domain Logic:
+  - Project completion rules
+  - Deadline management
+  - Event emission
+end note
+
+@enduml

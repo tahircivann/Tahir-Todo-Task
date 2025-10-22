@@ -1,0 +1,111 @@
+@startuml Event Flow - Automatic Task Deadline Adjustment
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Event Flow: Automatic Task Deadline Adjustment
+
+actor Client as C
+participant "FastAPI Router" as API
+participant "ProjectService" as PS
+participant "Project Entity" as PE
+participant "EventBus" as EB
+participant "ProjectEventHandler" as PEH
+participant "TaskRepository" as TR
+participant "Task Entity" as TE
+participant "Database" as DB
+
+== Project Deadline Update Flow ==
+
+C -> API: PUT /projects/{id}\n{deadline: "2025-12-15T23:59:59Z"}
+activate API
+
+API -> PS: update_project(project_id, deadline)
+activate PS
+
+PS -> PE: update_deadline(new_deadline)
+activate PE
+
+PE -> PE: Validate deadline
+PE -> PE: Update deadline field
+PE -> PE: _add_event(ProjectDeadlineChangedEvent)
+note right: Event stored in entity
+
+PE --> PS: Project updated
+deactivate PE
+
+PS -> EB: publish_events(project)
+activate EB
+
+EB -> PE: collect_events()
+activate PE
+PE -> PE: Return events list
+PE -> PE: clear_events()
+PE --> EB: [ProjectDeadlineChangedEvent]
+deactivate PE
+
+EB -> PEH: handle(ProjectDeadlineChangedEvent)
+activate PEH
+
+PEH -> PEH: Check if new_deadline < old_deadline
+note right: Only adjust if deadline shortened
+
+PEH -> TR: find_by_project_id(project_id)
+activate TR
+TR -> DB: SELECT tasks WHERE project_id = ?
+DB --> TR: Task records
+TR --> PEH: [Task entities]
+deactivate TR
+
+loop For each task with deadline > new_project_deadline
+    PEH -> TE: update_deadline(new_deadline, project_deadline)
+    activate TE
+    TE -> TE: Validate against project deadline
+    TE -> TE: Update deadline field
+    TE --> PEH: Task updated
+    deactivate TE
+    
+    PEH -> TR: save(task)
+    activate TR
+    TR -> DB: UPDATE task SET deadline = ?
+    DB --> TR: Updated
+    TR --> PEH: Saved task
+    deactivate TR
+    
+    PEH -> PEH: Log adjustment
+end
+
+PEH -> PEH: Log summary
+note right: "Adjusted X task deadline(s)"
+
+PEH --> EB: Event processed
+deactivate PEH
+
+EB --> PS: Events published
+deactivate EB
+
+PS -> TR: save(project)
+activate TR
+TR -> DB: UPDATE project SET deadline = ?
+DB --> TR: Updated
+TR --> PS: Saved project
+deactivate TR
+
+PS --> API: Updated project
+deactivate PS
+
+API --> C: 200 OK\n{project data}
+deactivate API
+
+note over C, DB
+  Key Points:
+  1. Events published BEFORE database save
+  2. Automatic task deadline adjustment
+  3. Only adjusts when project deadline shortened
+  4. Maintains data consistency
+end note
+
+@enduml
