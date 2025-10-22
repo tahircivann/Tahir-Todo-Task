@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: task-management-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - task_db_data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/tasks.db
+      - AUTO_COMPLETE_PROJECT=true
+      - LOG_LEVEL=INFO
+    command: >
+      sh -c "python -c 'from src.infrastructure.database.models import Base; from src.infrastructure.database.session import engine; Base.metadata.create_all(bind=engine); print(\"✅ Database tables created\")' && uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  task_db_data:
+    driver: local
+
